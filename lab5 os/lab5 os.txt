@@ -1,0 +1,135 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+int getHeadMov(vector<int> requests){
+    int movements = 0;
+    for(int i = 0 ; i < requests.size() - 1 ; i++){
+        movements += abs(requests[i+1] - requests[i]);
+    }
+    return movements;
+}
+
+
+void printReq(vector<int> requests){
+    for(int i = 0 ; i < requests.size(); i++){
+        cout<<requests[i];
+        if(i < requests.size() - 1)
+            cout<<" -> ";
+    }
+}
+
+
+void FIFO(vector<int> requests, int disk_size, int head_pos, int head_dir){
+    requests.insert(requests.begin(), head_pos);
+    printReq(requests);
+    cout<<endl;
+    int head_movements = getHeadMov(requests);
+    cout<<"Total head movements = "<<head_movements<<endl;
+    float avg_head_mov = float(head_movements) / (requests.size()-1);
+    cout<<"Average head movements = "<<avg_head_mov<<endl;
+}
+
+
+void SCAN(vector<int> requests, int disk_size, int head_pos, int head_dir){
+    vector<int>::iterator it;
+    if(head_dir == 1)
+        sort(requests.begin(),requests.end());
+    else
+        sort(requests.begin(),requests.end(),greater<>());
+    it = find(requests.begin(), requests.end(), head_pos);
+    vector<int> req;
+    if(it == requests.end()){
+        req.push_back(head_pos);
+        if(head_dir == 1)
+            it = lower_bound(requests.begin(), requests.end(), head_pos);
+        else
+            it = upper_bound(requests.begin(), requests.end(), head_pos,greater<>());
+    }
+    int idx;
+    if(it == requests.end())
+        idx = requests.size()-1;
+    else
+        idx = it-requests.begin();
+
+    for(int i = idx ; i < requests.size() ; i++)
+        req.push_back(requests[i]);
+    for(int i = idx-1 ; i >=0 ; i--)
+        req.push_back(requests[i]);
+
+    printReq(req);
+    cout<<endl;
+    int head_movements = getHeadMov(req);
+    cout<<"Total head movements = "<<head_movements<<endl;
+    float avg_head_mov = (float)head_movements / requests.size();
+    cout<<"Average head movements = "<<avg_head_mov<<endl;
+}
+
+
+void CSCAN(vector<int> requests, int disk_size, int head_pos, int head_dir){
+    vector<int>::iterator it;
+    if(head_dir == 1)
+        sort(requests.begin(),requests.end());
+    else
+        sort(requests.begin(),requests.end(),greater<>());
+    it = find(requests.begin(), requests.end(), head_pos);
+    vector<int> req;
+    if(it == requests.end()){
+        req.push_back(head_pos);
+        if(head_dir == 1)
+            it = lower_bound(requests.begin(), requests.end(), head_pos);
+        else
+            it = upper_bound(requests.begin(), requests.end(), head_pos,greater<>());
+    }
+    int idx;
+    if(it == requests.end())
+        idx = requests.size()-1;
+    else
+        idx = it-requests.begin();
+
+    for(int i = idx ; i < requests.size() ; i++)
+        req.push_back(requests[i]);
+    for(int i = 0 ; i < idx ; i++)
+        req.push_back(requests[i]);
+
+    printReq(req);
+    cout<<endl;
+    int head_movements = getHeadMov(req);
+    cout<<"Total head movements = "<<head_movements<<endl;
+    float avg_head_mov = (float)head_movements / requests.size();
+    cout<<"Average head movements = "<<avg_head_mov<<endl;
+}
+
+
+int main() {
+    int disk_size, requests_num, head_pos, head_dir;
+    vector<int> requests;
+
+    cout<<"Enter the size of disk:"<<endl;
+    cin>>disk_size;
+    cout<<"Enter number of requests:"<<endl;
+    cin>>requests_num;
+    cout<<"Enter the requests:"<<endl;
+    for(int i = 0 ; i < requests_num ; i++) {
+        int temp;
+        cin >> temp;
+        requests.push_back(temp);
+    }
+    cout<<"Enter the head position:"<<endl;
+    cin >> head_pos;
+    cout<<"Enter the head direction:"<<endl;
+    cin >> head_dir;
+
+    cout<<"FIFO:\n----------------"<<endl;
+    FIFO(requests, disk_size, head_pos, head_dir);
+    cout<<"\nSCAN:\n----------------"<<endl;
+    SCAN(requests, disk_size, head_pos, head_dir);
+    cout<<"\nCSCAN:\n----------------"<<endl;
+    CSCAN(requests, disk_size, head_pos, head_dir);
+
+    return 0;
+}
+
+// 27 129 110 186 147 41 10 64 120
