@@ -1,0 +1,202 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <sys/time.h>
+struct temp
+{
+    int i; /* row */
+    int j; /* column */
+    int size;
+    int c2a;
+};
+int mat1[100][100];
+int mat2[100][100];
+int mat3[100][100];
+void *element(void *param); /* the thread */
+void *row(void *param); /* the thread */
+
+int main()
+{
+
+
+    FILE *fp;
+    int r1,c1,r2,c2,i,j;
+    int buff;
+
+    fp = fopen("/home/kyrellos/Desktop/lab2/Threads/input", "r");
+    fscanf(fp, "%d %d", &r1,&c1);
+
+    for(i=0; i<r1; i++)   // scan matrix 1
+    {
+        for(j=0; j<c1; j++)
+        {
+            if(fscanf(fp, "%d", &buff) != EOF)
+                mat1[i][j]=buff;
+
+        }
+    }
+
+    fscanf(fp, "%d %d", &r2,&c2);
+    for(i=0; i<r2; i++)        // scan matrix 2
+    {
+        for(j=0; j<c2; j++)
+        {
+            if(fscanf(fp, "%d", &buff) != EOF)
+                mat2[i][j]=buff;
+
+        }
+    }
+
+    fclose(fp);
+
+    for(i=0; i<r1; i++)    // initializing result matrix to 0
+        for(j=0; j<c2; j++)
+        {
+            mat3[i][j] = 0;
+        }
+    fp = fopen("/home/kyrellos/Desktop/lab2/Threads/output", "a");
+    // FIRST QUESTION
+    struct timeval t1, t2;
+    double elapsedTime;
+
+    // start timer
+    gettimeofday(&t1, NULL);
+
+    // do something
+    // ...
+
+
+
+    for(i = 0; i < r1; i++)
+    {
+        for(j = 0; j < c2; j++)
+        {
+            //Assign a row and column for each thread
+            struct temp *data = (struct temp *) malloc(sizeof(struct temp));
+            data->i = i;
+            data->j = j;
+            data->size = c1;
+            /* Now create the thread passing it data as a parameter */
+            pthread_t tid;       //Thread ID
+
+            //Create the thread
+            pthread_create(&tid,NULL,element,data);
+            //Make sure the parent waits for all thread to complete
+            pthread_join(tid, NULL);
+        }
+    }
+    // stop timer
+    gettimeofday(&t2, NULL);
+
+    // compute and print the elapsed time in millisec
+    elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
+    elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
+
+    for(i=0; i<r1; i++)
+    {
+        for(j=0; j<c2; j++)
+        {
+
+            fprintf(fp,"%d ",mat3[i][j]);
+
+        }
+        fprintf(fp,"\n");
+    }
+    fprintf(fp,"END1         ");
+    fprintf(fp,"%lf",elapsedTime);
+    fprintf(fp,"\n");
+
+    // END OF FIRST QUESTION
+    // SECOND QUESTION
+    struct timeval t3, t4;
+    double elapsedTimee;
+
+    // start timer
+    gettimeofday(&t3, NULL);
+
+    // do something
+    // ...
+
+    j=0;
+    for(i = 0; i < r1; i++)
+    {
+
+        //Assign a row and column for each thread
+        struct temp *data = (struct temp *) malloc(sizeof(struct temp));
+        data->i = i;
+        data->j = j;
+        data->size = c1;
+        data->c2a= c2;
+        /* Now create the thread passing it data as a parameter */
+        pthread_t tid;       //Thread ID
+
+        //Create the thread
+        pthread_create(&tid,NULL,row,data);
+        //Make sure the parent waits for all thread to complete
+        pthread_join(tid, NULL);
+    }
+    // stop timer
+    gettimeofday(&t4, NULL);
+
+    // compute and print the elapsed time in millisec
+    elapsedTimee = (t4.tv_sec - t3.tv_sec) * 1000.0;      // sec to ms
+    elapsedTimee += (t4.tv_usec - t3.tv_usec) / 1000.0;   // us to ms
+
+    for(i=0; i<r1; i++)
+    {
+        for(j=0; j<c2; j++)
+        {
+
+            fprintf(fp,"%d ",mat3[i][j]);
+
+        }
+        fprintf(fp,"\n");
+    }
+    fprintf(fp,"END2        ");
+    fprintf(fp,"%lf",elapsedTimee);
+    fprintf(fp,"\n");
+
+    fclose(fp);
+
+
+
+
+    return 0;
+}
+
+void *element(void *param)
+{
+    struct temp *data = param; // the structure that holds our data
+    int n, sum = 0; //the counter and sum
+
+    //Row multiplied by column
+    for(n = 0; n< data->size; n++)
+    {
+        sum += mat1[data->i][n] * mat2[n][data->j];
+    }
+    //assign the sum to its coordinate
+    mat3[data->i][data->j] = sum;
+    printf("iam here\n");
+    //Exit the thread
+    pthread_exit(0);
+}
+void *row(void *param)
+{
+    struct temp *data = param; // the structure that holds our data
+    int n, sum = 0,k; //the counter and sum
+
+    for(k = 0; k < data->c2a; k++)
+    {
+        //Row multiplied by column
+        for(n = 0; n< data->size; n++)
+        {
+            sum += mat1[data->i][n] * mat2[n][data->j];
+        }
+        //assign the sum to its coordinate
+        mat3[data->i][data->j] = sum;
+        sum=0;
+        data->j=data->j +1 ;
+    }
+    //Exit the thread
+    pthread_exit(0);
+}
