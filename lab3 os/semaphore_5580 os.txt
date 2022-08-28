@@ -1,0 +1,124 @@
+#include<stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+#include<stdbool.h>
+#define N 5 //number of counter threads
+#define b 10
+
+sem_t counterSemaphore;
+sem_t bufferSemaphore;
+
+int counter = 0;
+int buffer[b] = {-1};
+
+int bufferFill = 0; //fill count in buffer
+int buffer_write_pos = 0; //next writing position in buffer
+int buffer_read_pos = 0; //next reading position in buffer
+
+void* mcounter(void* id_P) {
+    int id = (int)id_P;
+    int semaphore_val;
+
+    while(1) {
+    usleep((rand()%5)*0.5*1e6);
+    printf("Counter thread %d: received a message\n",id);
+
+    sem_getvalue(&counterSemaphore, &semaphore_val); //check if counter is currently used by another thread
+    if(semaphore_val < 1) printf("Counter thread %d: waiting to write\n",id);
+
+    sem_wait(&counterSemaphore);
+    counter++;
+    printf("Counter thread %d: now adding to counter, new value is %d\n",id,counter);
+    usleep((rand()%5)*0.25*1e6);
+    sem_post(&counterSemaphore);
+    }
+}
+
+void* mmonitor( ) {
+    int semaphore_val;
+    int temp_counter_val;
+    bool buffer_wait = false;
+
+    while(1) {
+    usleep((rand()%5)*0.5*1e6);
+        sem_getvalue(&counterSemaphore, &semaphore_val); //check if counter is currently used by another thread
+        if(semaphore_val < 1) printf("Monitor thread: waiting to read counter\n");
+
+        if(!buffer_wait){
+        sem_wait(&counterSemaphore);
+        temp_counter_val = counter;
+        counter = 0;
+        printf("Monitor thread: reading a count value of %d\n",temp_counter_val);
+    usleep((rand()%5)*0.25*1e6);
+        sem_post(&counterSemaphore);
+        }
+        sem_getvalue(&bufferSemaphore, &semaphore_val); //check if buffer is currently used by another thread
+        if(semaphore_val < 1) printf("Monitor thread: waiting to write to buffer\n");
+
+        sem_wait(&bufferSemaphore);
+        if(bufferFill == b) {
+            printf("Monitor thread: buffer full !\n");
+            buffer_wait = true;
+        }
+        else {
+            buffer[buffer_write_pos] = temp_counter_val;
+            printf("Monitor thread: writing to buffer at position %d\n",buffer_write_pos+1);
+            if(buffer_write_pos == b-1) buffer_write_pos = 0;
+            else buffer_write_pos++;
+            bufferFill++;
+            buffer_wait = false;
+        }
+    usleep((rand()%5)*0.25*1e6);
+        sem_post(&bufferSemaphore);
+    }
+}
+
+void* mmcollector() {
+    int semaphore_val;
+    int temp_read_val;
+
+    while(1) {
+    usleep((rand()%5)*0.5*1e6);
+        sem_getvalue(&bufferSemaphore, &semaphore_val); //check if buffer is currently used by another thread
+        if(semaphore_val < 1) printf("Collector thread: waiting to read from buffer\n");
+
+        sem_wait(&bufferSemaphore);
+        if(bufferFill == 0) {
+            printf("Collector thread: nothing is in the buffer !\n");
+        }
+        else {
+            temp_read_val = buffer[buffer_read_pos];
+            printf("Collector thread: reading from buffer at position %d, read value is %d\n",buffer_read_pos+1,temp_read_val);
+            if(buffer_read_pos == b-1) buffer_read_pos = 0;
+            else buffer_read_pos++;
+            bufferFill--;
+        }
+    usleep((rand()%5)*0.25*1e6);
+        sem_post(&bufferSemaphore);
+    }
+}
+
+int main() {
+    sem_init(&counterSemaphore, 0, 1); //initialize semaphores to 1
+    sem_init(&bufferSemaphore, 0, 1);
+    pthread_t mcounter_threads[N], mmonitor_thread, mmcollector_thread;
+
+    int ids[N];
+  for (int i = 0; i < N; i++) {
+        ids[i]=i+1;
+        pthread_create(&mcounter_threads[i], NULL, mcounter, &ids[i]);
+    }
+    pthread_create(&mmonitor_thread, NULL, mmonitor, NULL);
+    pthread_create(&mmcollector_thread, NULL, mmcollector, NULL);
+
+    sleep(10);
+    return 0;
+
+    pthread_join(mmcollector_thread, NULL);
+    pthread_join(mmonitor_thread, NULL);
+    for (int i = 0; i < N; i++) pthread_join(mcounter_threads[i], NULL);
+
+    return 0;
+}
